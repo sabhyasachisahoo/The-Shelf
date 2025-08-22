@@ -7,15 +7,15 @@ import { sendVerificationCode } from "../utils/sendVerificationCode.js";
 import { sendToken } from "../utils/sendToken.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { generateForgotPasswordEmailTemplate } from "../utils/emailTemplates.js";
-import {validatePassword} from "../utils/validatePassword.js"
+import { validatePassword } from "../utils/validatePassword.js";
 import { validateFields } from "../utils/validateFields.js";
 
 export const register = catchAsyncErrors(async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
     //Validate inputs
-    const validationError = validateFields({name, email, password})
-    if(validationError){
+    const validationError = validateFields({ name, email, password });
+    if (validationError) {
       return next(new ErrorHandler(validationError, 400));
     }
     const isRegistered = await User.findOne({ email, accountVerified: true });
@@ -34,11 +34,11 @@ export const register = catchAsyncErrors(async (req, res, next) => {
         )
       );
     }
-    const passwordValidationError = validatePassword(password)
-    if(passwordValidationError){
-      return next(new ErrorHandler(passwordValidationError, 400))
+    const passwordValidationError = validatePassword(password);
+    if (passwordValidationError) {
+      return next(new ErrorHandler(passwordValidationError, 400));
     }
-   
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
@@ -100,9 +100,9 @@ export const verifyOTP = catchAsyncErrors(async (req, res, next) => {
 
 export const login = catchAsyncErrors(async (req, res, next) => {
   const { email, password } = req.body;
-  const validationError = validateFields({email, password})
-  if(validationError){
-    return next(new ErrorHandler(validationError, 400))
+  const validationError = validateFields({ email, password });
+  if (validationError) {
+    return next(new ErrorHandler(validationError, 400));
   }
   const user = await User.findOne({ email, accountVerified: true }).select(
     "+password"
@@ -123,6 +123,8 @@ export const logout = catchAsyncErrors(async (req, res, next) => {
     .cookie("token", "", {
       expires: new Date(Date.now()),
       httpOnly: true,
+      secure: true,
+      sameSite: "None",
     })
     .json({
       success: true,
@@ -190,7 +192,10 @@ export const resetPassword = catchAsyncErrors(async (req, res, next) => {
       )
     );
   }
-  const passwordValidationError = validatePassword(req.body.password, req.body.confirmPassword);
+  const passwordValidationError = validatePassword(
+    req.body.password,
+    req.body.confirmPassword
+  );
   if (passwordValidationError) {
     return next(new ErrorHandler(passwordValidationError, 400));
   }
@@ -206,9 +211,11 @@ export const resetPassword = catchAsyncErrors(async (req, res, next) => {
 export const updatePassword = catchAsyncErrors(async (req, res, next) => {
   const user = await User.findById(req.user._id).select("+password");
   const { currentPassword, newPassword, confirmNewPassword } = req.body;
-  
+
   const validateFieldsError = validateFields({
-    currentPassword,newPassword,confirmNewPassword
+    currentPassword,
+    newPassword,
+    confirmNewPassword,
   });
   if (validateFieldsError) {
     return next(new ErrorHandler(validateFieldsError, 400));
@@ -220,11 +227,14 @@ export const updatePassword = catchAsyncErrors(async (req, res, next) => {
   if (!isPasswordMatched) {
     return next(new ErrorHandler("Current password is incorrect.", 400));
   }
-  const passwordValidationError = validatePassword(newPassword, confirmNewPassword);
+  const passwordValidationError = validatePassword(
+    newPassword,
+    confirmNewPassword
+  );
   if (passwordValidationError) {
     return next(new ErrorHandler(passwordValidationError, 400));
   }
-  
+
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   user.password = hashedPassword;
   await user.save();
